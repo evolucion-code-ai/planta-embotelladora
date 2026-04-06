@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Planta Embotelladora</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f1f5f9;min-height:100vh}
+select,input{font-family:inherit}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const initProductos = [
+  { id:1, nombre:"Bidón 20L", precio:800, stock:120, retornable:true, vencimiento:"2026-12-01" },
+  { id:2, nombre:"Botellón 12L", precio:550, stock:80, retornable:false, vencimiento:"" },
+  { id:3, nombre:"Botella 2L x6", precio:420, stock:60, retornable:false, vencimiento:"" },
+  { id:4, nombre:"Botella 500ml x12", precio:380, stock:45, retornable:false, vencimiento:"" },
+];
+const initClientes = [
+  { id:1, nombre:"Supermercado El Sol", telefono:"351-111-2222", direccion:"Av. Colón 1234", zona:"Norte", saldo:-3200 },
+  { id:2, nombre:"Restaurante La Pampa", telefono:"351-333-4444", direccion:"San Martín 456", zona:"Centro", saldo:-1500 },
+  { id:3, nombre:"Kiosco Central", telefono:"351-555-6666", direccion:"Rivadavia 789", zona:"Sur", saldo:0 },
+  { id:4, nombre:"Mostrador / Ocasional", telefono:"", direccion:"", zona:"", saldo:0 },
+];
+const initCamiones = [
+  { id:1, patente:"AB 123 CD", chofer:"Carlos Pérez", zona:"Norte" },
+  { id:2, patente:"EF 456 GH", chofer:"Luis Rodríguez", zona:"Sur" },
+];
+const initGastos = [
+  { id:1, categoria:"Servicios", nombre:"Energía Eléctrica", monto:45000, vencimiento:"2026-04-15", estado:"pendiente", metodoPago:"transferencia", pagado:false },
+  { id:2, categoria:"Servicios", nombre:"Gas Natural", monto:18000, vencimiento:"2026-04-20", estado:"pendiente", metodoPago:"transferencia", pagado:false },
+  { id:3, categoria:"Servicios", nombre:"Internet / Telefonía", monto:12000, vencimiento:"2026-04-10", estado:"vencido", metodoPago:"transferencia", pagado:false },
+  { id:4, categoria:"Personal", nombre:"Sueldos Operarios", monto:320000, vencimiento:"2026-04-30", estado:"pendiente", metodoPago:"transferencia", pagado:false },
+  { id:5, categoria:"Personal", nombre:"Cargas Sociales", monto:96000, vencimiento:"2026-04-30", estado:"pendiente", metodoPago:"transferencia", pagado:false },
+  { id:6, categoria:"Alquiler", nombre:"Alquiler Planta", monto:150000, vencimiento:"2026-04-05", estado:"vencido", metodoPago:"cheque", pagado:false },
+  { id:7, categoria:"Insumos", nombre:"Envases y Tapas", monto:55000, vencimiento:"2026-04-18", estado:"pendiente", metodoPago:"efectivo", pagado:false },
+  { id:8, categoria:"Mantenimiento", nombre:"Mantenimiento Equipos", monto:30000, vencimiento:"2026-04-25", estado:"pendiente", metodoPago:"efectivo", pagado:false },
+  { id:9, categoria:"Transporte", nombre:"Combustible Flota", monto:40000, vencimiento:"2026-04-28", estado:"pendiente", metodoPago:"efectivo", pagado:false },
+  { id:10, categoria:"Impuestos", nombre:"Monotributo / Impuestos", monto:25000, vencimiento:"2026-04-20", estado:"pendiente", metodoPago:"transferencia", pagado:false },
+];
+
+const fmt = n => `$${Number(n).toLocaleString("es-AR",{minimumFractionDigits:2})}`;
+const hoy = () => new Date().toLocaleDateString("es-AR");
+const hoyISO = () => new Date().toISOString().split("T")[0];
+
+const C = {
+  card:{ background:"#fff", borderRadius:12, padding:20, boxShadow:"0 1px 4px #0001" },
+  inp:{ width:"100%", border:"1px solid #d1d5db", borderRadius:8, padding:"8px 12px", fontSize:14, boxSizing:"border-box" },
+};
+const tag=(color,bg)=>({ fontSize:11,fontWeight:700,color,background:bg,padding:"2px 8px",borderRadius:20,display:"inline-block" });
+const Btn=({color="#1d4ed8",children,onClick,style={}})=>(
+  <button onClick={onClick} style={{background:color,color:"#fff",border:"none",borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:700,cursor:"pointer",...style}}>{children}</button>
+);
+const PillBtn=({active,onClick,children})=>(
+  <button onClick={onClick} style={{padding:"7px 14px",borderRadius:20,border:"1px solid",fontSize:12,fontWeight:600,cursor:"pointer",
+    background:active?"#1d4ed8":"#fff",color:active?"#fff":"#374151",borderColor:active?"#1d4ed8":"#d1d5db"}}>{children}</button>
+);
+const MetBtn=({value,cur,set,children})=>(
+  <button onClick={()=>set(value)} style={{padding:"7px 12px",borderRadius:8,border:"1px solid",fontSize:12,fontWeight:600,cursor:"pointer",
+    background:cur===value?"#1d4ed8":"#f8fafc",color:cur===value?"#fff":"#374151",borderColor:cur===value?"#1d4ed8":"#e2e8f0"}}>{children}</button>
+);
+
+function App(){
+  const [gastos,setGastos]=useState(initGastos);
+  const [gForm,setGForm]=useState({categoria:"Servicios",nombre:"",monto:"",vencimiento:hoyISO(),metodoPago:"transferencia"});
+  const [filtroGasto,setFiltroGasto]=useState("todos");
+  const [tab,setTab]=useState("ventas");
+  const [subTab,setSubTab]=useState("nueva");
+  const [productos,setProductos]=useState(initProductos);
+  const [clientes,setClientes]=useState(initClientes);
+  const [ventas,setVentas]=useState([]);
+  const [movCaja,setMovCaja]=useState([]);
+  const [producciones,setProducciones]=useState([]);
+  const [rendiciones,setRendiciones]=useState([]);
+  const [cajaCerrada,setCajaCerrada]=useState(false);
+  const cajaInicial=5000;
+
+  const [clienteSel,setClienteSel]=useState(1);
+  const [items,setItems]=useState([]);
+  const [metodoPago,setMetodoPago]=useState("efectivo");
+  const [retornados,setRetornados]=useState(0);
+  const [clienteCobro,setClienteCobro]=useState(1);
+  const [montoCobro,setMontoCobro]=useState("");
+  const [metodoCC,setMetodoCC]=useState("efectivo");
+  const [pForm,setPForm]=useState({nombre:"",precio:"",stock:"",retornable:false,vencimiento:""});
+  const [cForm,setCForm]=useState({nombre:"",telefono:"",direccion:"",zona:"Norte"});
+  const [prodForm,setProdForm]=useState({productoId:1,cantidad:"",lote:"",fecha:hoyISO()});
+  const [rForm,setRForm]=useState({camionId:1,fecha:hoyISO(),items:[],retornados:0,observaciones:""});
+  const [rItemProd,setRItemProd]=useState(1);
+  const [rItemQty,setRItemQty]=useState("");
+
+  const addItem=pid=>{
+    const p=productos.find(x=>x.id===+pid); if(!p)return;
+    setItems(prev=>{const ex=prev.find(i=>i.id===p.id); return ex?prev.map(i=>i.id===p.id?{...i,qty:i.qty+1}:i):[...prev,{...p,qty:1}];});
+  };
+  const totalVenta=items.reduce((s,i)=>s+i.precio*i.qty,0);
+
+  const confirmarVenta=()=>{
+    if(!items.length)return alert("Agregá al menos un producto.");
+    const cl=clientes.find(c=>c.id===+clienteSel);
+    const v={id:ventas.length+1,fecha:hoy(),cliente:cl.nombre,items:[...items],total:totalVenta,metodo:metodoPago,retornados:+retornados};
+    setVentas(p=>[v,...p]);
+    setProductos(prev=>prev.map(p=>{const it=items.find(i=>i.id===p.id);return it?{...p,stock:p.stock-it.qty}:p;}));
+    if(metodoPago==="efectivo")setMovCaja(p=>[{id:p.length+1,desc:`Venta #${v.id} - ${cl.nombre}`,monto:totalVenta,tipo:"ingreso",hora:new Date().toLocaleTimeString("es-AR")},...p]);
+    if(metodoPago==="cuenta_corriente")setClientes(p=>p.map(c=>c.id===+clienteSel?{...c,saldo:c.saldo-totalVenta}:c));
+    setItems([]); setRetornados(0); alert(`✅ Venta registrada por ${fmt(totalVenta)}`);
+  };
+  const confirmarCobro=()=>{
+    const m=+montoCobro; if(!m||m<=0)return alert("Ingresá un monto válido.");
+    const cl=clientes.find(c=>c.id===+clienteCobro);
+    setClientes(p=>p.map(c=>c.id===+clienteCobro?{...c,saldo:c.saldo+m}:c));
+    if(metodoCC==="efectivo")setMovCaja(p=>[{id:p.length+1,desc:`Cobro CC - ${cl.nombre}`,monto:m,tipo:"ingreso",hora:new Date().toLocaleTimeString("es-AR")},...p]);
+    setMontoCobro(""); alert("✅ Cobro registrado");
+  };
+  const totalCaja=cajaInicial+movCaja.filter(m=>m.tipo==="ingreso").reduce((s,m)=>s+m.monto,0);
+
+  const confirmarProduccion=()=>{
+    const cant=+prodForm.cantidad; if(!cant||cant<=0)return alert("Ingresá una cantidad.");
+    const prod=productos.find(p=>p.id===+prodForm.productoId);
+    setProducciones(p=>[{id:p.length+1,...prodForm,productoNombre:prod.nombre,cantidad:cant},...p]);
+    setProductos(prev=>prev.map(p=>p.id===+prodForm.productoId?{...p,stock:p.stock+cant}:p));
+    setProdForm({productoId:1,cantidad:"",lote:"",fecha:hoyISO()});
+    alert(`✅ +${cant} unidades de ${prod.nombre}`);
+  };
+  const addRItem=()=>{
+    const qty=+rItemQty; if(!qty||qty<=0)return alert("Ingresá una cantidad.");
+    const p=productos.find(x=>x.id===+rItemProd);
+    setRForm(prev=>{const ex=prev.items.find(i=>i.id===p.id);
+      return{...prev,items:ex?prev.items.map(i=>i.id===p.id?{...i,qty:i.qty+qty}:i):[...prev.items,{...p,qty}]};});
+    setRItemQty("");
+  };
+  const confirmarRendicion=()=>{
+    if(!rForm.items.length)return alert("Agregá al menos un producto.");
+    const cam=initCamiones.find(c=>c.id===+rForm.camionId);
+    setRendiciones(p=>[{id:p.length+1,...rForm,camionPatente:cam.patente,camionChofer:cam.chofer},...p]);
+    setRForm({camionId:1,fecha:hoyISO(),items:[],retornados:0,observaciones:""}); alert("✅ Rendición registrada");
+  };
+
+  const marcarPagado=(id)=>{
+    setGastos(prev=>prev.map(g=>g.id===id?{...g,pagado:true,estado:"pagado"}:g));
+  };
+  const agregarGasto=()=>{
+    if(!gForm.nombre||!gForm.monto)return alert("Completá nombre y monto.");
+    setGastos(p=>[...p,{id:Date.now(),...gForm,monto:+gForm.monto,pagado:false,estado:"pendiente"}]);
+    setGForm({categoria:"Servicios",nombre:"",monto:"",vencimiento:hoyISO(),metodoPago:"transferencia"});
+  };
+
+  const gastosFiltrados = filtroGasto==="todos" ? gastos : gastos.filter(g=>g.estado===filtroGasto||g.categoria===filtroGasto);
+  const totalGastos = gastos.reduce((s,g)=>s+g.monto,0);
+  const totalPagado = gastos.filter(g=>g.pagado).reduce((s,g)=>s+g.monto,0);
+  const totalPendiente = gastos.filter(g=>!g.pagado).reduce((s,g)=>s+g.monto,0);
+  const totalVencido = gastos.filter(g=>g.estado==="vencido"&&!g.pagado).reduce((s,g)=>s+g.monto,0);
+
+  const TABS=[{id:"ventas",label:"🛒 Ventas y Caja"},{id:"clientes",label:"👥 Clientes"},{id:"stock",label:"📦 Stock"},{id:"produccion",label:"🏭 Producción"},{id:"distribucion",label:"🚚 Distribución"},{id:"gastos",label:"📊 Gastos Fijos"}];
+
+  return(
+    <div style={{fontFamily:"system-ui,sans-serif",background:"#f1f5f9",minHeight:"100vh"}}>
+      <div style={{background:"linear-gradient(135deg,#1e3a8a,#3b82f6)",color:"#fff",padding:"14px 20px",display:"flex",alignItems:"center",gap:12}}>
+        <div style={{fontSize:28}}>💧</div>
+        <div><div style={{fontSize:17,fontWeight:800}}>Planta Embotelladora</div><div style={{fontSize:11,opacity:.75}}>Sistema de Gestión · {hoy()}</div></div>
+      </div>
+      <div style={{display:"flex",background:"#fff",borderBottom:"2px solid #e2e8f0",overflowX:"auto"}}>
+        {TABS.map(t=>(
+          <button key={t.id} onClick={()=>{setTab(t.id);setSubTab("nueva");}} style={{padding:"11px 16px",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",whiteSpace:"nowrap",
+            background:tab===t.id?"#eff6ff":"transparent",color:tab===t.id?"#1d4ed8":"#64748b",
+            borderBottom:tab===t.id?"2px solid #1d4ed8":"2px solid transparent"}}>{t.label}</button>
+        ))}
+      </div>
+
+      <div style={{padding:16,maxWidth:860,margin:"0 auto"}}>
+
+        {/* VENTAS */}
+        {tab==="ventas"&&<div>
+          <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+            {[["nueva","🛒 Nueva Venta"],["cc","💳 Cuentas Corrientes"],["caja","💰 Caja"],["historial","📋 Historial"]].map(([id,l])=>(
+              <PillBtn key={id} active={subTab===id} onClick={()=>setSubTab(id)}>{l}</PillBtn>
+            ))}
+          </div>
+
+          {subTab==="nueva"&&<div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div style={C.card}>
+              <div style={{fontWeight:700,marginBottom:10}}>Cliente</div>
+              <select value={clienteSel} onChange={e=>setClienteSel(+e.target.value)} style={C.inp}>
+                {clientes.map(c=><option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+            </div>
+            <div style={C.card}>
+              <div style={{fontWeight:700,marginBottom:10}}>Productos</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {productos.map(p=>(
+                  <button key={p.id} onClick={()=>addItem(p.id)} style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:10,padding:"10px 12px",cursor:"pointer",textAlign:"left"}}>
+                    <div style={{fontSize:13,fontWeight:600}}>{p.nombre}</div>
+                    <div style={{fontSize:12,color:"#3b82f6"}}>{fmt(p.precio)}</div>
+                    <div style={{fontSize:11,color:p.stock<10?"#dc2626":"#64748b"}}>Stock: {p.stock}</div>
+                    {p.retornable&&<span style={tag("#92400e","#fef3c7")}>Retornable</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {items.length>0&&<div style={C.card}>
+              <div style={{fontWeight:700,marginBottom:10}}>Detalle</div>
+              {items.map(i=>(
+                <div key={i.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:"1px solid #f1f5f9"}}>
+                  <div><div style={{fontSize:13,fontWeight:600}}>{i.nombre}</div><div style={{fontSize:12,color:"#64748b"}}>{fmt(i.precio)} × {i.qty}</div></div>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontWeight:700,color:"#1d4ed8"}}>{fmt(i.precio*i.qty)}</span>
+                    <button onClick={()=>setItems(p=>p.filter(x=>x.id!==i.id))} style={{background:"#fee2e2",color:"#dc2626",border:"none",borderRadius:6,padding:"2px 8px",cursor:"pointer"}}>✕</button>
+                  </div>
+                </div>
+              ))}
+              {items.some(i=>i.retornable)&&(
+                <div style={{marginTop:10,display:"flex",alignItems:"center",gap:8}}>
+                  <label style={{fontSize:13,color:"#92400e",fontWeight:600}}>↩ Bidones retornados:</label>
+                  <input type="number" min={0} value={retornados} onChange={e=>setRetornados(e.target.value)} style={{...C.inp,width:70}}/>
+                </div>
+              )}
+              <div style={{marginTop:12}}>
+                <div style={{fontSize:13,fontWeight:600,marginBottom:6}}>Método de pago</div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <MetBtn value="efectivo" cur={metodoPago} set={setMetodoPago}>💵 Efectivo</MetBtn>
+                  <MetBtn value="transferencia" cur={metodoPago} set={setMetodoPago}>📲 Transferencia</MetBtn>
+                  <MetBtn value="cuenta_corriente" cur={metodoPago} set={setMetodoPago}>📒 Cta. Cte.</MetBtn>
+                </div>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:14}}>
+                <div style={{fontSize:18,fontWeight:800}}>Total: {fmt(totalVenta)}</div>
+                <Btn color="#16a34a" onClick={confirmarVenta}>✅ Confirmar Venta</Btn>
+              </div>
+            </div>}
+          </div>}
+
+          {subTab==="cc"&&<div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div style={C.card}>
+              <div style={{fontWeight:700,marginBottom:12}}>Saldos</div>
+              {clientes.filter(c=>c.id!==4).map(c=>(
+                <div key={c.id} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:"1px solid #f1f5f9"}}>
+                  <div><div style={{fontWeight:600,fontSize:14}}>{c.nombre}</div><div style={{fontSize:12,color:"#64748b"}}>{c.zona}</div></div>
+                  <div style={{fontWeight:700,color:c.saldo<0?"#dc2626":"#16a34a"}}>
+                    {c.saldo<0?`Debe ${fmt(Math.abs(c.saldo))}`:c.saldo===0?"Al día":`A favor ${fmt(c.saldo)}`}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={C.card}>
+              <div style={{fontWeight:700,marginBottom:12}}>Registrar Cobro</div>
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                <select value={clienteCobro} onChange={e=>setClienteCobro(+e.target.value)} style={C.inp}>
+                  {clientes.filter(c=>c.id!==4).map(c=><option key={c.id} value={c.id}>{c.nombre}</option>)}
+                </select>
+                <input type="number" placeholder="Monto" value={montoCobro} onChange={e=>setMontoCobro(e.target.value)} style={C.inp}/>
+                <div style={{display:"flex",gap:8}}>
+                  <MetBtn value="efectivo" cur={metodoCC} set={setMetodoCC}>💵 Efectivo</MetBtn>
+                  <MetBtn value="transferencia" cur={metodoCC} set={setMetodoCC}>📲 Transferencia</MetBtn>
+                </div>
+                <Btn color="#16a34a" onClick={confirmarCobro}>💳 Registrar Cobro</Btn>
+              </div>
+            </div>
+          </div>}
+
+          {subTab==="caja"&&<div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+              {[["Apertura",fmt(cajaInicial),"#3b82f6"],["Ingresos",fmt(movCaja.reduce((s,m)=>s+m.monto,0)),"#16a34a"],["Total",fmt(totalCaja),"#7c3aed"]].map(([l,v,c])=>(
+                <div key={l} style={{...C.card,textAlign:"center"}}>
+                  <div style={{fontSize:12,color:"#64748b"}}>{l}</div>
+                  <div style={{fontSize:17,fontWeight:800,color:c}}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={C.card}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+                <div style={{fontWeight:700}}>Movimientos</div>
+                {!cajaCerrada?<Btn color="#dc2626" onClick={()=>{setCajaCerrada(true);alert(`✅ Caja cerrada. Total: ${fmt(totalCaja)}`)}}>🔒 Cerrar Caja</Btn>
+                  :<span style={{color:"#dc2626",fontWeight:700,fontSize:13}}>🔒 Cerrada</span>}
+              </div>
+              {movCaja.length===0&&<div style={{color:"#94a3b8",textAlign:"center",padding:20}}>Sin movimientos</div>}
+              {movCaja.map(m=>(
+                <div key={m.id} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid #f1f5f9",fontSize:13}}>
+                  <span><span style={{color:"#94a3b8"}}>{m.hora}</span> · {m.desc}</span>
+                  <span style={{fontWeight:700,color:"#16a34a"}}>+{fmt(m.monto)}</span>
+                </div>
+              ))}
+            </div>
+          </div>}
+
+          {subTab==="historial"&&<div style={C.card}>
+            <div style={{fontWeight:700,marginBottom:12}}>Historial de Ventas</div>
+            {ventas.length===0&&<div style={{color:"#94a3b8",textAlign:"center",padding:20}}>Sin ventas</div>}
+            {ventas.map(v=>(
+              <div key={v.id} style={{border:"1px solid #e2e8f0",borderRadius:10,padding:12,marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <div style={{fontWeight:700,fontSize:14}}>Venta #{v.id} · {v.cliente}</div>
+                  <div style={{fontWeight:800,color:"#1d4ed8"}}>{fmt(v.total)}</div>
+                </div>
+                <div style={{fontSize:12,color:"#64748b"}}>{v.fecha} · {v.metodo}</div>
+                <div style={{fontSize:12,color:"#475569",marginTop:4}}>{v.items.map(i=>`${i.nombre} x${i.qty}`).join(" | ")}{v.retornados>0&&` · ↩ ${v.retornados} retornados`}</div>
+              </div>
+            ))}
+          </div>}
+        </div>}
+
+        {/* CLIENTES */}
+        {tab==="clientes"&&<div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <div style={C.card}>
+            <div style={{fontWeight:700,marginBottom:12}}>➕ Nuevo Cliente</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <input placeholder="Nombre / Razón social" value={cForm.nombre} onChange={e=>setCForm(p=>({...p,nombre:e.target.value}))} style={C.inp}/>
+              <input placeholder="Teléfono" value={cForm.telefono} onChange={e=>setCForm(p=>({...p,telefono:e.target.value}))} style={C.inp}/>
+              <input placeholder="Dirección" value={cForm.direccion} onChange={e=>setCForm(p=>({...p,direccion:e.target.value}))} style={C.inp}/>
+              <select value={cForm.zona} onChange={e=>setCForm(p=>({...p,zona:e.target.value}))} style={C.inp}>
+                {["Norte","Sur","Centro","Este","Oeste"].map(z=><option key={z}>{z}</option>)}
+              </select>
+            </div>
+            <Btn onClick={()=>{if(!cForm.nombre)return alert("Ingresá el nombre.");setClientes(p=>[...p,{id:Date.now(),...cForm,saldo:0}]);setCForm({nombre:"",telefono:"",direccion:"",zona:"Norte"});}} style={{marginTop:12}}>Agregar Cliente</Btn>
+          </div>
+          <div style={C.card}>
+            <div style={{fontWeight:700,marginBottom:12}}>Listado de Clientes</div>
+            {clientes.filter(c=>c.id!==4).map(c=>(
+              <div key={c.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid #f1f5f9"}}>
+                <div>
+                  <div style={{fontWeight:600,fontSize:14}}>{c.nombre}</div>
+                  <div style={{fontSize:12,color:"#64748b"}}>{c.telefono}{c.telefono&&c.direccion?" · ":""}{c.direccion}</div>
+                  {c.zona&&<span style={tag("#1d4ed8","#dbeafe")}>{c.zona}</span>}
+                </div>
+                <div style={{fontWeight:700,color:c.saldo<0?"#dc2626":"#16a34a",fontSize:14}}>
+                  {c.saldo<0?`Debe ${fmt(Math.abs(c.saldo))}`:"Al día"}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>}
+
+        {/* STOCK */}
+        {tab==="stock"&&<div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <div style={C.card}>
+            <div style={{fontWeight:700,marginBottom:12}}>➕ Nuevo Producto</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <input placeholder="Nombre" value={pForm.nombre} onChange={e=>setPForm(p=>({...p,nombre:e.target.value}))} style={C.inp}/>
+              <input placeholder="Precio" type="number" value={pForm.precio} onChange={e=>setPForm(p=>({...p,precio:e.target.value}))} style={C.inp}/>
+              <input placeholder="Stock inicial" type="number" value={pForm.stock} onChange={e=>setPForm(p=>({...p,stock:e.target.value}))} style={C.inp}/>
+              <input placeholder="Vencimiento" type="date" value={pForm.vencimiento} onChange={e=>setPForm(p=>({...p,vencimiento:e.target.value}))} style={C.inp}/>
+            </div>
+            <label style={{display:"flex",alignItems:"center",gap:8,marginTop:10,fontSize:13,cursor:"pointer"}}>
+              <input type="checkbox" checked={pForm.retornable} onChange={e=>setPForm(p=>({...p,retornable:e.target.checked}))}/> Producto retornable (bidón)
+            </label>
+            <Btn onClick={()=>{if(!pForm.nombre||!pForm.precio)return alert("Completá nombre y precio.");setProductos(p=>[...p,{id:Date.now(),...pForm,precio:+pForm.precio,stock:+pForm.stock||0}]);setPForm({nombre:"",precio:"",stock:"",retornable:false,vencimiento:""});}} style={{marginTop:12}}>Agregar Producto</Btn>
+          </div>
+          <div style={C.card}>
+            <div style={{fontWeight:700,marginBottom:12}}>Inventario Actual</div>
+            {productos.map(p=>(
+              <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid #f1f5f9"}}>
+                <div>
+                  <div style={{fontWeight:600,fontSize:14}}>{p.nombre}</div>
+                  <div style={{fontSize:12,color:"#64748b"}}>{fmt(p.precio)} c/u</div>
+                  {p.retornable&&p.vencimiento&&<div style={{fontSize:11,color:"#92400e"}}>Venc: {p.vencimiento}</div>}
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:22,fontWeight:800,color:p.stock<10?"#dc2626":p.stock<30?"#f59e0b":"#16a34a"}}>{p.stock}</div>
+                  <div style={{fontSize:11,color:"#64748b"}}>unidades</div>
+                  {p.stock<10&&<span style={tag("#dc2626","#fee2e2")}>⚠ Stock bajo</span>}
+                  {p.retornable&&<span style={{...tag("#92400e","#fef3c7"),marginLeft:4}}>↩ Retornable</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>}
+
+        {/* PRODUCCION */}
+        {tab==="produccion"&&<div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <div style={C.card}>
+            <div style={{fontWeight:700,marginBottom:12}}>📋 Registrar Producción</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <select value={prodForm.productoId} onChange={e=>setProdForm(p=>({...p,productoId:+e.target.value}))} style={C.inp}>
+                {productos.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
+              <input type="number" placeholder="Cantidad producida" value={prodForm.cantidad} onChange={e=>setProdForm(p=>({...p,cantidad:e.target.value}))} style={C.inp}/>
+              <input placeholder="Nro. de lote" value={prodForm.lote} onChange={e=>setProdForm(p=>({...p,lote:e.target.value}))} style={C.inp}/>
+              <input type="date" value={prodForm.fecha} onChange={e=>setProdForm(p=>({...p,fecha:e.target.value}))} style={C.inp}/>
+            </div>
+            <Btn color="#16a34a" onClick={confirmarProduccion} style={{marginTop:12}}>✅ Registrar Producción</Btn>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            {productos.map(p=>(
+              <div key={p.id} style={{...C.card,textAlign:"center"}}>
+                <div style={{fontSize:13,fontWeight:600}}>{p.nombre}</div>
+                <div style={{fontSize:26,fontWeight:800,color:p.stock<10?"#dc2626":p.stock<30?"#f59e0b":"#1d4ed8",marginTop:4}}>{p.stock}</div>
+                <div style={{fontSize:11,color:"#64748b"}}>unidades en stock</div>
+              </div>
+            ))}
+          </div>
+          <div style={C.card}>
+            <div style={{fontWeight:700,marginBottom:12}}>Historial de Producción</div>
+            {producciones.length===0&&<div style={{color:"#94a3b8",textAlign:"center",padding:20}}>Sin registros</div>}
+            {producciones.map(p=>(
+              <div key={p.id} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #f1f5f9"}}>
+                <div><div style={{fontWeight:600,fontSize:14}}>{p.productoNombre}</div><div style={{fontSize:12,color:"#64748b"}}>Lote: {p.lote||"—"} · {p.fecha}</div></div>
+                <div style={{fontSize:22,fontWeight:800,color:"#16a34a"}}>+{p.cantidad}</div>
+              </div>
+            ))}
+          </div>
+        </div>}
+
+        {/* DISTRIBUCION */}
+        {tab==="distribucion"&&<div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <div style={C.card}>
+            <div style={{fontWeight:700,marginBottom:12}}>🚚 Registrar Rendición</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <select value={rForm.camionId} onChange={e=>setRForm(p=>({...p,camionId:+e.target.value}))} style={C.inp}>
+                {initCamiones.map(c=><option key={c.id} value={c.id}>{c.patente} · {c.chofer} ({c.zona})</option>)}
+              </select>
+              <input type="date" value={rForm.fecha} onChange={e=>setRForm(p=>({...p,fecha:e.target.value}))} style={C.inp}/>
+            </div>
+            <div style={{marginTop:14,fontWeight:600,fontSize:13,marginBottom:8}}>Productos entregados</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+              <select value={rItemProd} onChange={e=>setRItemProd(+e.target.value)} style={{...C.inp,flex:2,minWidth:160}}>
+                {productos.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
+              <input type="number" placeholder="Cant." value={rItemQty} onChange={e=>setRItemQty(e.target.value)} style={{...C.inp,flex:1,minWidth:70}}/>
+              <Btn onClick={addRItem}>+ Agregar</Btn>
+            </div>
+            {rForm.items.map(i=>(
+              <div key={i.id} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:"1px solid #f1f5f9",fontSize:13,marginTop:4}}>
+                <span>{i.nombre}</span>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontWeight:700}}>{i.qty} unid.</span>
+                  <button onClick={()=>setRForm(p=>({...p,items:p.items.filter(x=>x.id!==i.id)}))} style={{background:"#fee2e2",color:"#dc2626",border:"none",borderRadius:6,padding:"2px 8px",cursor:"pointer"}}>✕</button>
+                </div>
+              </div>
+            ))}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:14}}>
+              <div>
+                <label style={{fontSize:13,fontWeight:600,color:"#92400e",display:"block",marginBottom:4}}>↩ Bidones 20L retornados</label>
+                <input type="number" min={0} value={rForm.retornados} onChange={e=>setRForm(p=>({...p,retornados:+e.target.value}))} style={C.inp}/>
+              </div>
+              <div>
+                <label style={{fontSize:13,fontWeight:600,display:"block",marginBottom:4}}>Observaciones</label>
+                <input placeholder="Opcional..." value={rForm.observaciones} onChange={e=>setRForm(p=>({...p,observaciones:e.target.value}))} style={C.inp}/>
+              </div>
+            </div>
+            <Btn color="#16a34a" onClick={confirmarRendicion} style={{marginTop:14,width:"100%"}}>✅ Confirmar Rendición</Btn>
+          </div>
+          <div style={C.card}>
+            <div style={{fontWeight:700,marginBottom:12}}>Historial de Rendiciones</div>
+            {rendiciones.length===0&&<div style={{color:"#94a3b8",textAlign:"center",padding:20}}>Sin rendiciones</div>}
+            {rendiciones.map(r=>(
+              <div key={r.id} style={{border:"1px solid #e2e8f0",borderRadius:10,padding:12,marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <div style={{fontWeight:700,fontSize:14}}>🚚 {r.camionPatente} · {r.camionChofer}</div>
+                  <span style={tag("#1d4ed8","#dbeafe")}>{r.fecha}</span>
+                </div>
+                <div style={{fontSize:12,color:"#475569"}}>{r.items.map(i=>`${i.nombre} x${i.qty}`).join(" | ")}</div>
+                {r.retornados>0&&<div style={{fontSize:12,color:"#92400e",marginTop:4}}>↩ {r.retornados} bidón(es) retornado(s)</div>}
+                {r.observaciones&&<div style={{fontSize:12,color:"#64748b",marginTop:4,fontStyle:"italic"}}>{r.observaciones}</div>}
+              </div>
+            ))}
+          </div>
+          <div style={C.card}>
+            <div style={{fontWeight:700,marginBottom:12}}>🚛 Flota</div>
+            {initCamiones.map(c=>(
+              <div key={c.id} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid #f1f5f9"}}>
+                <div><div style={{fontWeight:600,fontSize:14}}>{c.patente}</div><div style={{fontSize:12,color:"#64748b"}}>Chofer: {c.chofer}</div></div>
+                <span style={tag("#1d4ed8","#dbeafe")}>Zona {c.zona}</span>
+              </div>
+            ))}
+          </div>
+        </div>}
+
+        {/* GASTOS FIJOS */}
+        {tab==="gastos"&&<div style={{display:"flex",flexDirection:"column",gap:14}}>
+
+          {/* Resumen financiero */}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10}}>
+            {[
+              ["Total Gastos",fmt(totalGastos),"#64748b"],
+              ["Pagado",fmt(totalPagado),"#16a34a"],
+              ["Pendiente",fmt(totalPendiente),"#f59e0b"],
+              ["Vencido",fmt(totalVencido),"#dc2626"],
+            ].map(([l,v,c])=>(
+              <div key={l} style={{...C.card,textAlign:"center"}}>
+                <div style={{fontSize:11,color:"#64748b",marginBottom:4}}>{l}</div>
+                <div style={{fontSize:15,fontWeight:800,color:c}}>{v}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Posición financiera */}
+          <div style={C.card}>
+            <div style={{fontWeight:700,marginBottom:12,fontSize:15}}>📈 Posición Financiera</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+              {["Servicios","Personal","Alquiler","Insumos","Mantenimiento","Transporte","Impuestos"].map(cat=>{
+                const items=gastos.filter(g=>g.categoria===cat);
+                const tot=items.reduce((s,g)=>s+g.monto,0);
+                const pag=items.filter(g=>g.pagado).reduce((s,g)=>s+g.monto,0);
+                const pct=tot>0?Math.round(pag/tot*100):0;
+                return(
+                  <div key={cat} style={{background:"#f8fafc",borderRadius:10,padding:12,border:"1px solid #e2e8f0"}}>
+                    <div style={{fontSize:12,fontWeight:700,color:"#1e293b",marginBottom:6}}>{cat}</div>
+                    <div style={{fontSize:14,fontWeight:800,color:"#1d4ed8"}}>{fmt(tot)}</div>
+                    <div style={{background:"#e2e8f0",borderRadius:20,height:6,marginTop:6}}>
+                      <div style={{background:pct===100?"#16a34a":pct>0?"#f59e0b":"#e2e8f0",width:`${pct}%`,height:"100%",borderRadius:20,transition:"width .3s"}}/>
+                    </div>
+                    <div style={{fontSize:11,color:"#64748b",marginTop:4}}>{pct}% pagado</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Agregar gasto */}
+          <div style={C.card}>
+            <div style={{fontWeight:700,marginBottom:12}}>➕ Nuevo Gasto Fijo</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <select value={gForm.categoria} onChange={e=>setGForm(p=>({...p,categoria:e.target.value}))} style={C.inp}>
+                {["Servicios","Personal","Alquiler","Insumos","Mantenimiento","Transporte","Impuestos","Otro"].map(c=><option key={c}>{c}</option>)}
+              </select>
+              <input placeholder="Nombre del gasto" value={gForm.nombre} onChange={e=>setGForm(p=>({...p,nombre:e.target.value}))} style={C.inp}/>
+              <input type="number" placeholder="Monto $" value={gForm.monto} onChange={e=>setGForm(p=>({...p,monto:e.target.value}))} style={C.inp}/>
+              <input type="date" value={gForm.vencimiento} onChange={e=>setGForm(p=>({...p,vencimiento:e.target.value}))} style={C.inp}/>
+            </div>
+            <div style={{marginTop:10}}>
+              <div style={{fontSize:13,fontWeight:600,marginBottom:6}}>Método de pago</div>
+              <div style={{display:"flex",gap:8}}>
+                <MetBtn value="efectivo" cur={gForm.metodoPago} set={v=>setGForm(p=>({...p,metodoPago:v}))}>💵 Efectivo</MetBtn>
+                <MetBtn value="transferencia" cur={gForm.metodoPago} set={v=>setGForm(p=>({...p,metodoPago:v}))}>📲 Transferencia</MetBtn>
+                <MetBtn value="cheque" cur={gForm.metodoPago} set={v=>setGForm(p=>({...p,metodoPago:v}))}>📋 Cheque</MetBtn>
+              </div>
+            </div>
+            <Btn onClick={agregarGasto} style={{marginTop:12}}>Agregar Gasto</Btn>
+          </div>
+
+          {/* Filtros */}
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {["todos","pendiente","vencido","pagado"].map(f=>(
+              <PillBtn key={f} active={filtroGasto===f} onClick={()=>setFiltroGasto(f)}>
+                {f==="todos"?"🗂 Todos":f==="pendiente"?"🕐 Pendientes":f==="vencido"?"🔴 Vencidos":"✅ Pagados"}
+              </PillBtn>
+            ))}
+          </div>
+
+          {/* Listado */}
+          <div style={C.card}>
+            <div style={{fontWeight:700,marginBottom:12}}>Detalle de Gastos Fijos</div>
+            {gastosFiltrados.map(g=>{
+              const metIcon=g.metodoPago==="efectivo"?"💵":g.metodoPago==="transferencia"?"📲":"📋";
+              const estadoColor=g.pagado?"#16a34a":g.estado==="vencido"?"#dc2626":"#f59e0b";
+              const estadoBg=g.pagado?"#f0fdf4":g.estado==="vencido"?"#fef2f2":"#fffbeb";
+              return(
+                <div key={g.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 0",borderBottom:"1px solid #f1f5f9",background:g.pagado?"#fafafa":"transparent"}}>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{fontSize:13,fontWeight:700,color:g.pagado?"#94a3b8":"#1e293b"}}>{g.nombre}</span>
+                      <span style={{...tag(estadoColor,estadoBg)}}>
+                        {g.pagado?"✅ Pagado":g.estado==="vencido"?"🔴 Vencido":"🕐 Pendiente"}
+                      </span>
+                      <span style={tag("#475569","#f1f5f9")}>{metIcon} {g.metodoPago}</span>
+                    </div>
+                    <div style={{fontSize:12,color:"#64748b",marginTop:2}}>{g.categoria} · Vence: {g.vencimiento}</div>
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                    <div style={{fontWeight:800,fontSize:15,color:g.pagado?"#94a3b8":"#1d4ed8"}}>{fmt(g.monto)}</div>
+                    {!g.pagado&&(
+                      <Btn color="#16a34a" onClick={()=>marcarPagado(g.id)} style={{padding:"6px 14px",fontSize:12}}>Pagar</Btn>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>}
+
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
